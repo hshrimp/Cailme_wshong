@@ -36,77 +36,11 @@ QQ群：237633234
 
 我们在 ``judger`` 文件夹中提供了一个 ``Judger`` 的类可以帮助你计算你三个任务的得分，你可以参考该代码实现你自己的Judger。该Judger所使用的读入格式仅用于我们的评测，如果你需要使用该代码，请根据你的需求自行进行修改。
 
-## 现有的系统环境
 
-```
-Package             Version               
-------------------- ----------------------
-absl-py             0.2.0                 
-astor               0.6.2                 
-bleach              1.5.0                 
-boto                2.48.0                
-boto3               1.7.19                
-botocore            1.10.19               
-bz2file             0.98                  
-certifi             2018.4.16             
-chardet             3.0.4                 
-Cython              0.28.2                
-docutils            0.14                  
-fasttext            0.8.3                 
-future              0.16.0                
-gast                0.2.0                 
-gensim              3.4.0                 
-grpcio              1.11.0                
-h5py                2.7.1                 
-html5lib            0.9999999             
-idna                2.6                   
-jieba               0.39                  
-jmespath            0.9.3                 
-Keras               2.1.6                 
-Markdown            2.6.11                
-numpy               1.14.3                
-pandas              0.22.0                
-Pillow              5.1.0                 
-pip                 10.0.1                
-protobuf            3.5.2.post1           
-pycurl              7.43.0                
-pygobject           3.20.0                
-pyltp               0.2.1                 
-python-apt          1.1.0b1+ubuntu0.16.4.1
-python-dateutil     2.7.3                 
-pytz                2018.4                
-PyYAML              3.12                  
-requests            2.18.4                
-s3transfer          0.1.13                
-scikit-learn        0.19.1                
-scipy               1.1.0                 
-setuptools          39.0.1                
-six                 1.11.0                
-sklearn             0.0                   
-smart-open          1.5.7                 
-tensorboard         1.7.0                 
-tensorflow-gpu      1.7.0                 
-termcolor           1.1.0                 
-Theano              1.0.1                 
-thulac              0.1.2                 
-torch               0.3.1                 
-torchvision         0.2.0                 
-unattended-upgrades 0.1                   
-urllib3             1.22                  
-Werkzeug            0.14.1                
-wheel               0.31.0                
-xgboost             0.71                  
-```
-
-等待补全中
-
-如果你有需要的环境，请联系比赛管理员进行安装。
-        
-
-
-
-
-
-
-
-
+## 个人修改部分！！！！！
+## 文本预处理，分词、去停用词、正则去时间，在文件夹text_pre_process下。
+采用哈工大的pylpt，去除fact第一句，去除时间，比如2018年5月29日，去掉停用词。
+用train、test、valid 的fact部分 Keras.Tokenizer, 取词频前20000个词，做成词典，后续只要读词典就行，不需要load所有的词向量。
+将train、test、valid 的fact部分 全部转换成数字序列，数字代表该词在字典的位置，通过字典取向量就行了。
+## 模型
+CNN_base_model:基于卷积神经网络
