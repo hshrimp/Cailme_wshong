@@ -1,6 +1,6 @@
 #encoding='utf-8'
 from keras.models import Model
-from keras.optimizers import SGD
+from keras.optimizers import SGD,Adam
 from keras.utils import plot_model
 from keras.layers import Dense,Dropout,Input,Flatten,Lambda,Activation
 from keras.layers import Conv1D,MaxPooling1D,Embedding,BatchNormalization
@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.metrics import fbeta_score,f1_score
 from keras.preprocessing.sequence import pad_sequences
 import keras.backend as K
-from  keras.callbacks import ModelCheckpoint,ReduceLROnPlateau
+from  keras.callbacks import ModelCheckpoint,ReduceLROnPlateau,EarlyStopping
 
 max_sequence_length=175
 num_words=20000
@@ -71,6 +71,14 @@ def get_label(task):
 
     return len(train_label[0]),train_label,valid_label
 
+def get_class_weight(task):
+    path='/home/wshong/Downloads/cail_0518/train/class_weight_'+task+'.txt'
+    class_weight={}
+    with open(path,'r')as fi:
+        for i,weight in enumerate(fi.readlines()):
+            class_weight[i] = float(weight.split()[0])
+    return class_weight
+
 def f1(y_true, y_pred):
     def recall(y_true, y_pred):
         """Recall metric.
@@ -109,19 +117,22 @@ def CNN_base(config):
 
     sequence_input = Input(shape=(max_sequence_length,), dtype='int32')
     embedded_sequences = embedding_layer(sequence_input)
-    x1 = Conv1D(200,3, activation='relu')(embedded_sequences)
-    x1 = MaxPooling1D(3,padding='same')(x1)
-    x1 = Dropout(0.5)(x1)
-    x1 = Conv1D(200,3, activation='relu')(x1)
-    x1 = MaxPooling1D(3,padding='same')(x1)
-    x1 = Dropout(0.5)(x1)
-    x1 = Conv1D(200,3, activation='relu')(x1)
-    x1 = MaxPooling1D(3,padding='same')(x1)
-    x1 = Dropout(0.5)(x1)
-    x1 = Flatten()(x1)
-    x = Dense(128)(x1)
-    x=BatchNormalization()(x)
-    x=Activation(activation='relu')(x)
+    x = Conv1D(300,3)(embedded_sequences)
+    x = BatchNormalization()(x)
+    x = Activation(activation='relu')(x)
+    x = MaxPooling1D(3,padding='same')(x)
+    x = Conv1D(300,3)(x)
+    x = BatchNormalization()(x)
+    x = Activation(activation='relu')(x)
+    x = MaxPooling1D(3,padding='same')(x)
+    x = Conv1D(300,3)(x)
+    x = BatchNormalization()(x)
+    x = Activation(activation='relu')(x)
+    x = MaxPooling1D(3,padding='same')(x)
+    x = Flatten()(x)
+    x = Dense(128)(x)
+    x = BatchNormalization()(x)
+    x = Activation(activation='relu')(x)
     #x = Dropout(0.25)(x)
     x = Dense(64)(x)
     x = BatchNormalization()(x)
@@ -143,20 +154,23 @@ def train(config,task):
     config['embed']= get_embed_metrix()
     config['train_data'],config['valid_data']= get_data()
     config['class_num'],config['train_label'],config['valid_label']=get_label(task)
+    config['class_weight']=get_class_weight(task)
 
 
-    sgd = SGD(lr=0.05, decay=1e-6, momentum=0.9, nesterov=True)
+    sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
     model=CNN_base(config)
     # f1_micro=fbeta_score
     # f1_macro = fbeta_score
-    checkpoint=ModelCheckpoint('CNN_base_best_'+task+'.h5',monitor='val_f1',mode='max',save_best_only=True,verbose=1)
-    reduceLR=ReduceLROnPlateau(monitor='val_f1', factor=0.5, patience=2, verbose=0, mode='max',
+    checkpoint=ModelCheckpoint('CNN_base_best2_'+task+'.h5',monitor='val_categorical_accuracy',mode='max',save_best_only=True,verbose=1)
+    reduceLR=ReduceLROnPlateau(monitor='val_categorical_accuracy', factor=0.5, patience=2, verbose=0, mode='max',
                                       epsilon=0.0001, cooldown=0, min_lr=0)
+    earlystop=EarlyStopping(monitor='val_loss',min_delta=0.0001,patience=4, mode='min')
 
-    model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=[f1,'categorical_accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['categorical_accuracy'])
 
-    model.fit(config['train_data'], config['train_label'], batch_size=128, epochs=20,verbose=2,callbacks=[checkpoint], validation_data=(config['valid_data'], config['valid_label']))
-    plot_model(model, to_file='cnn_1.png', show_shapes=True)
+    model.fit(config['train_data'], config['train_label'], batch_size=128, epochs=50,verbose=1,callbacks=[checkpoint,reduceLR,earlystop],
+              validation_data=(config['valid_data'], config['valid_label']), class_weight=config['class_weight'])
+    #plot_model(model, to_file='cnn_1.png', show_shapes=True)
     #model.save('CNN_base_'+task+'.h5')
 
 if __name__ == '__main__':
@@ -164,5 +178,7 @@ if __name__ == '__main__':
     config['max_sequence_length'] = 175
     config['num_words']= 20000
     config['embedding_dim'] = 300
-    train(config,'accusation')
+    tasks=['accusation','law','time']
+    for task in tasks:
+        train(config,task)
 
